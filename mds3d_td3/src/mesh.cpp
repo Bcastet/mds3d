@@ -23,6 +23,26 @@ bool Mesh::load(const std::string& filename)
 void Mesh::computeNormals()
 {
   // TODO
+
+  for(size_t i = 0; i < mVertices.size(); i++){
+    mVertices[i].normal = Vector3f(0,0,0);
+  }
+
+  for(size_t i = 0; i < mFaces.size(); i++){
+    Vector3f ab = mVertices[mFaces[i][0]].position - mVertices[mFaces[i][1]].position;
+    Vector3f bc = mVertices[mFaces[i][1]].position - mVertices[mFaces[i][2]].position;
+    Vector3f normalFace = ab.cross(bc);
+
+    mVertices[mFaces[i][0]].normal += normalFace;
+    mVertices[mFaces[i][1]].normal += normalFace;
+    mVertices[mFaces[i][2]].normal += normalFace;
+  }
+
+  for(int i = 0; i < mVertices.size(); i++){
+    mVertices[i].normal.normalize() ;
+    std::cout <<  mVertices[i].normal << "\n\n";
+  }
+
 }
 
 void Mesh::initVBA()

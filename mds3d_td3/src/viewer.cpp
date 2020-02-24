@@ -11,6 +11,7 @@ Viewer::Viewer()
   _offset = Vector3f(0,0,0);
   _theta = 0;
   iterations=0;
+  iterations_moon=0;
 
 }
 
@@ -28,6 +29,7 @@ void Viewer::init(int w, int h){
     glEnable(GL_DEPTH_TEST);
 
     if(!_mesh.load(DATA_DIR"/models/sphere.obj")) exit(1);
+    _mesh.computeNormals();
     _mesh.initVBA();
 
     reshape(w,h);
@@ -128,8 +130,51 @@ void Viewer::drawScene2D()
     _shader.deactivate();
 }
 
-
 void Viewer::drawScene3D()
+{
+  // TODO
+
+  glViewport(0, 0, _winWidth, _winHeight);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+
+  _shader.activate();
+
+  Matrix4f M;
+  M <<  _zoom, 0, 0, _offset.x(),
+        0, _zoom, 0, _offset.y(),
+        0, 0, _zoom, 0,
+        0, 0, 0, 1;
+  glUniformMatrix4fv(_shader.getUniformLocation("obj_mat"),
+   1, GL_FALSE, M.data());
+  glUniformMatrix4fv(_shader.getUniformLocation("vue_mat"),
+   1, GL_FALSE, _cam.viewMatrix().data());
+   glUniformMatrix4fv(_shader.getUniformLocation("per_mat"),
+   1, GL_FALSE, _cam.projectionMatrix().data());
+
+   Matrix3f L = M.block(0,0,3,3);
+   L = L.inverse().transpose();
+
+   glUniformMatrix3fv(_shader.getUniformLocation("normal_mat"),
+   1, GL_FALSE, L.data());
+
+   Vector3f light = Vector3f(0,-1,1);
+   glUniform3fv(_shader.getUniformLocation("light_dir"),1, light.data());
+
+   Vector3f secCol = Vector3f(1,1,1);
+   glUniform3fv(_shader.getUniformLocation("sCol"),1, secCol.data());
+
+   float s = 10;
+   glUniform1f(_shader.getUniformLocation("exposant"), s);
+
+  _mesh.draw(_shader);
+  _shader.deactivate();
+
+
+}
+
+void Viewer::drawSceneSolaire()
 {
   // TODO
 
@@ -152,6 +197,22 @@ void Viewer::drawScene3D()
   glUniformMatrix4fv(_shader.getUniformLocation("mat_perspective"),
   1, GL_FALSE, _cam.projectionMatrix().data());
 
+  Matrix3f L = M.block(0,0,3,3);
+  L = L.inverse().transpose();
+
+  glUniformMatrix3fv(_shader.getUniformLocation("normal_mat"),
+  1, GL_FALSE, L.data());
+
+  Vector3f light = Vector3f(0,-1,1);
+  glUniform3fv(_shader.getUniformLocation("light_dir"),1, light.data());
+
+  Vector3f secCol = Vector3f(1,1,1);
+  glUniform3fv(_shader.getUniformLocation("sCol"),1, secCol.data());
+
+  float s = 90;
+  glUniform1f(_shader.getUniformLocation("exposant"), s);
+
+
   _mesh.draw(_shader);
 
   //Terre
@@ -167,8 +228,12 @@ void Viewer::drawScene3D()
   w<<0,1,0;
   Vector3f c;
   c<<0,0,0; // center of rotation
-  Affine3f A = Translation3f(c) * AngleAxisf(iterations, w) * Translation3f(-c)*Translation3f(earth_orbit_size);
+  Affine3f A = AngleAxisf(iterations, w)*Translation3f(earth_orbit_size)*AngleAxisf(rotations_earth,w);
   printf("\nAffine earth:\n");
+  Vector3f earth_location;
+  earth_location<<A.matrix()(0,3),A.matrix()(1,3),A.matrix()(2,3);
+  
+  
   std::cout<<A.matrix();
 
   Matrix4f earth=A.matrix();
@@ -179,8 +244,6 @@ void Viewer::drawScene3D()
   earth(2,0)*=2;
   
 
-  printf("\nMatrix earth:\n");
-  std::cout<<earth;
   glUniformMatrix4fv(_shader.getUniformLocation("mat_obj"),
    1, GL_FALSE, earth.data());
   glUniformMatrix4fv(_shader.getUniformLocation("mat_view"),
@@ -192,14 +255,13 @@ void Viewer::drawScene3D()
   //Lune
   
   Vector3f moon_orbit_size;
-  moon_orbit_size<<2,0,2;
+  moon_orbit_size<<2.5,0,2.5;
   Vector3f moon_orbit;
   moon_orbit<<0,1,0; 
-  Vector3f earth_location;
-  earth_location<<A.matrix()(0,3),A.matrix()(1,3),A.matrix()(2,3); // center of rotation
-  printf("\nEarth position:\n");
-  std::cout<<earth_location<<std::endl;
-  Affine3f moon_aff =  Translation3f(earth_location) * AngleAxisf(iterations_moon, moon_orbit) *Translation3f(moon_orbit_size);
+
+  earth_location<<earth.matrix()(0,3),earth.matrix()(1,3),earth.matrix()(2,3); // center of rotation
+  
+  Affine3f moon_aff =  Translation3f(earth_location) * AngleAxisf(iterations_moon, moon_orbit) *Translation3f(moon_orbit_size)*AngleAxisf(rotations_moon, moon_orbit);
 
   //Matrix4f moon = A.matrix()*moon_aff.matrix();
   
@@ -214,18 +276,20 @@ void Viewer::drawScene3D()
   _shader.deactivate();
   iterations+=M_PI/128;
   iterations_moon+=M_PI/16;
+  rotations_earth+=M_PI/64;
+  rotations_moon+=M_PI/16;
 }
 
 
 void Viewer::updateAndDrawScene()
 {
-    drawScene3D();
+    drawSceneSolaire();
 }
 
 void Viewer::loadShaders()
 {
     // Here we can load as many shaders as we want, currently we have only one:
-    _shader.loadFromFiles(DATA_DIR"/shaders/3dshader.vert", DATA_DIR"/shaders/3dshader.frag");
+    _shader.loadFromFiles(DATA_DIR"/shaders/3dshader_light.vert", DATA_DIR"/shaders/3dshader_light.frag");
     checkError();
 }
 
@@ -256,11 +320,11 @@ void Viewer::keyPressed(int key, int action, int /*mods*/)
     }
     else if (key==GLFW_KEY_LEFT)
     {
-      _offset(0) += 0.2;
+     _theta -= M_PI/8;
     }
     else if (key==GLFW_KEY_RIGHT)
     {
-      _offset(0) -= 0.2;
+      _theta -= M_PI/8;
     }
     else if (key==GLFW_KEY_PAGE_UP)
     {

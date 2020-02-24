@@ -30,6 +30,7 @@ public:
     void charPressed(int key);
     void drawScene2D();
     void drawScene3D();
+    void drawSceneSolaire();
 
 private:
     int _winWidth, _winHeight;
@@ -43,6 +44,8 @@ private:
     float _theta;
     float iterations;
     float iterations_moon;
+    float rotations_earth;
+    float rotations_moon;
     // Mouse parameters for the trackball
     enum TrackMode
     {
