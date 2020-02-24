@@ -33,7 +33,7 @@ void Viewer::init(int w, int h){
     reshape(w,h);
     _trackball.setCamera(&_cam);
 
-  Vector3f pos_cam = Vector3f(1,1,1);
+  Vector3f pos_cam = Vector3f(15,0,0);
   Vector3f target = Vector3f(0,0,0);
   Vector3f y_vect = Vector3f(0,1,0);
     _cam.lookAt(pos_cam,target,y_vect);
@@ -141,7 +141,10 @@ void Viewer::drawScene3D()
   _shader.activate();
   //Soleil
   Matrix4f M;
-  M.setIdentity();
+  M<< 5, 0, 0, 0,
+      0, 5, 0, 0,
+      0, 0, 5, 0,
+      0, 0, 0, 1;
   glUniformMatrix4fv(_shader.getUniformLocation("mat_obj"),
    1, GL_FALSE, M.data());
   glUniformMatrix4fv(_shader.getUniformLocation("mat_view"),
@@ -157,19 +160,29 @@ void Viewer::drawScene3D()
     Affine3f A = Translation3f(t)
                 *AngleAxisf(_theta,Vector3f::UnitZ())
                 *Translation3f(-t);*/
-  Matrix4f T;
-  T <<    1, 0, 0, 5,
-          0, 1, 0, 0,
-          0, 0, 1, 0,
-          0, 0, 0, 1;
+  
+  Vector3f earth_orbit_size;
+  earth_orbit_size<<10,0,1;
   Vector3f w; // rotation axis
   w<<0,1,0;
   Vector3f c;
   c<<0,0,0; // center of rotation
-  Affine3f A = Translation3f(c) * AngleAxisf(iterations, w) * Translation3f(-c);
-  T *= A.matrix();
+  Affine3f A = Translation3f(c) * AngleAxisf(iterations, w) * Translation3f(-c)*Translation3f(earth_orbit_size);
+  printf("\nAffine earth:\n");
+  std::cout<<A.matrix();
+
+  Matrix4f earth=A.matrix();
+  earth(0,0)*=2;
+  earth(1,1)*=2;
+  earth(2,2)*=2;
+  earth(0,2)*=2;
+  earth(2,0)*=2;
+  
+
+  printf("\nMatrix earth:\n");
+  std::cout<<earth;
   glUniformMatrix4fv(_shader.getUniformLocation("mat_obj"),
-   1, GL_FALSE, T.data());
+   1, GL_FALSE, earth.data());
   glUniformMatrix4fv(_shader.getUniformLocation("mat_view"),
    1, GL_FALSE, _cam.viewMatrix().data());
    glUniformMatrix4fv(_shader.getUniformLocation("mat_perspective"),
@@ -178,18 +191,29 @@ void Viewer::drawScene3D()
 
   //Lune
   
+  Vector3f moon_orbit_size;
+  moon_orbit_size<<2,0,2;
+  Vector3f moon_orbit;
+  moon_orbit<<0,1,0; 
+  Vector3f earth_location;
+  earth_location<<A.matrix()(0,3),A.matrix()(1,3),A.matrix()(2,3); // center of rotation
+  printf("\nEarth position:\n");
+  std::cout<<earth_location<<std::endl;
+  Affine3f moon_aff =  Translation3f(earth_location) * AngleAxisf(iterations_moon, moon_orbit) *Translation3f(moon_orbit_size);
+
+  //Matrix4f moon = A.matrix()*moon_aff.matrix();
   
-
-
-  /*glUniformMatrix4fv(_shader.getUniformLocation("mat_view"),
+  glUniformMatrix4fv(_shader.getUniformLocation("mat_obj"),
+   1, GL_FALSE, moon_aff.matrix().data());
+  glUniformMatrix4fv(_shader.getUniformLocation("mat_view"),
    1, GL_FALSE, _cam.viewMatrix().data());
    glUniformMatrix4fv(_shader.getUniformLocation("mat_perspective"),
-   1, GL_FALSE, _cam.projectionMatrix().data());*/
+   1, GL_FALSE, _cam.projectionMatrix().data());
 
   _mesh.draw(_shader);
   _shader.deactivate();
-  iterations+=M_PI/16;
-
+  iterations+=M_PI/128;
+  iterations_moon+=M_PI/16;
 }
 
 

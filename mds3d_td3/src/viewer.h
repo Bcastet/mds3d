@@ -42,6 +42,7 @@ private:
     Eigen::Vector3f _viewAngle;
     float _theta;
     float iterations;
+    float iterations_moon;
     // Mouse parameters for the trackball
     enum TrackMode
     {
