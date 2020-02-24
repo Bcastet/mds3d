@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.cuh": "cpp",
+        "vector": "cpp",
+        "functional": "cpp",
+        "*.tcc": "cpp",
+        "memory": "cpp",
+        "system_error": "cpp",
+        "type_traits": "cpp"
+    }
+}
